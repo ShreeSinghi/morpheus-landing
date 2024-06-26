@@ -85,83 +85,88 @@ def blockhash_even(im, bits):
             result.append(value)
 
     translate_blocks_to_bits(result, blocksize_x * blocksize_y)
-    return bits_to_hexhash(result)
+    return result
+    # return bits_to_hexhash(result)
 
 
-def blockhash(im, bits):
-    if im.mode == "RGBA":
-        total_value = total_value_rgba
-    elif im.mode == "RGB":
-        total_value = total_value_rgb
-    else:
-        raise RuntimeError("Unsupported image mode: {}".format(im.mode))
-
-    data = im.getdata()
-    width, height = im.size
-
-    even_x = width % bits == 0
-    even_y = height % bits == 0
-
-    if even_x and even_y:
-        return blockhash_even(im, bits)
-
-    blocks = [[0 for col in range(bits)] for row in range(bits)]
-
-    block_width = float(width) / bits
-    block_height = float(height) / bits
-
-    for y in range(height):
-        if even_y:
-            # don't bother dividing y, if the size evenly divides by bits
-            block_top = block_bottom = int(y // block_height)
-            weight_top, weight_bottom = 1, 0
+def blockhash(ims, bits):
+    bits_list = []
+    for im in ims:
+        if im.mode == "RGBA":
+            total_value = total_value_rgba
+        elif im.mode == "RGB":
+            total_value = total_value_rgb
         else:
-            y_frac, y_int = math.modf((y + 1) % block_height)
+            raise RuntimeError("Unsupported image mode: {}".format(im.mode))
 
-            weight_top = 1 - y_frac
-            weight_bottom = y_frac
+        data = im.getdata()
+        width, height = im.size
 
-            # y_int will be 0 on bottom/right borders and on block boundaries
-            if y_int > 0 or (y + 1) == height:
+        even_x = width % bits == 0
+        even_y = height % bits == 0
+
+        if even_x and even_y:
+            return blockhash_even(im, bits)
+
+        blocks = [[0 for col in range(bits)] for row in range(bits)]
+
+        block_width = float(width) / bits
+        block_height = float(height) / bits
+
+        for y in range(height):
+            if even_y:
+                # don't bother dividing y, if the size evenly divides by bits
                 block_top = block_bottom = int(y // block_height)
+                weight_top, weight_bottom = 1, 0
             else:
-                block_top = int(y // block_height)
-                block_bottom = int(
-                    -(-y // block_height)
-                )  # int(math.ceil(float(y) / block_height))
+                y_frac, y_int = math.modf((y + 1) % block_height)
 
-        for x in range(width):
-            value = total_value(im, data, x, y)
+                weight_top = 1 - y_frac
+                weight_bottom = y_frac
 
-            if even_x:
-                # don't bother dividing x, if the size evenly divides by bits
-                block_left = block_right = int(x // block_width)
-                weight_left, weight_right = 1, 0
-            else:
-                x_frac, x_int = math.modf((x + 1) % block_width)
-
-                weight_left = 1 - x_frac
-                weight_right = x_frac
-
-                # x_int will be 0 on bottom/right borders and on block boundaries
-                if x_int > 0 or (x + 1) == width:
-                    block_left = block_right = int(x // block_width)
+                # y_int will be 0 on bottom/right borders and on block boundaries
+                if y_int > 0 or (y + 1) == height:
+                    block_top = block_bottom = int(y // block_height)
                 else:
-                    block_left = int(x // block_width)
-                    block_right = int(
-                        -(-x // block_width)
-                    )  # int(math.ceil(float(x) / block_width))
+                    block_top = int(y // block_height)
+                    block_bottom = int(
+                        -(-y // block_height)
+                    )  # int(math.ceil(float(y) / block_height))
 
-            # add weighted pixel value to relevant blocks
-            blocks[block_top][block_left] += value * weight_top * weight_left
-            blocks[block_top][block_right] += value * weight_top * weight_right
-            blocks[block_bottom][block_left] += value * weight_bottom * weight_left
-            blocks[block_bottom][block_right] += value * weight_bottom * weight_right
+            for x in range(width):
+                value = total_value(im, data, x, y)
 
-    result = [blocks[row][col] for row in range(bits) for col in range(bits)]
+                if even_x:
+                    # don't bother dividing x, if the size evenly divides by bits
+                    block_left = block_right = int(x // block_width)
+                    weight_left, weight_right = 1, 0
+                else:
+                    x_frac, x_int = math.modf((x + 1) % block_width)
 
-    translate_blocks_to_bits(result, block_width * block_height)
-    return bits_to_hexhash(result)
+                    weight_left = 1 - x_frac
+                    weight_right = x_frac
+
+                    # x_int will be 0 on bottom/right borders and on block boundaries
+                    if x_int > 0 or (x + 1) == width:
+                        block_left = block_right = int(x // block_width)
+                    else:
+                        block_left = int(x // block_width)
+                        block_right = int(
+                            -(-x // block_width)
+                        )  # int(math.ceil(float(x) / block_width))
+
+                # add weighted pixel value to relevant blocks
+                blocks[block_top][block_left] += value * weight_top * weight_left
+                blocks[block_top][block_right] += value * weight_top * weight_right
+                blocks[block_bottom][block_left] += value * weight_bottom * weight_left
+                blocks[block_bottom][block_right] += value * weight_bottom * weight_right
+
+        result = [blocks[row][col] for row in range(bits) for col in range(bits)]
+
+        translate_blocks_to_bits(result, block_width * block_height)
+        bits_list.append(result)  # bits_to_hexhash(result)
+
+    return bits_list
 
 
 if __name__ == "__main__":
