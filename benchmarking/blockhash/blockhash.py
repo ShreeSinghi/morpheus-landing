@@ -9,7 +9,7 @@
 import math
 import argparse
 import PIL.Image as Image
-
+import numpy as np
 
 def median(data):
     data = sorted(data)
@@ -89,9 +89,11 @@ def blockhash_even(im, bits):
     # return bits_to_hexhash(result)
 
 
-def blockhash(ims, bits):
+def blockhash(ims, bits=32, size=224, *args, **kwargs):
     bits_list = []
-    for im in ims:
+    for i, im in enumerate(ims):  
+        method = kwargs.get("method", Image.BILINEAR)
+        im = im.resize((size, size), method)
         if im.mode == "RGBA":
             total_value = total_value_rgba
         elif im.mode == "RGB":
@@ -106,9 +108,11 @@ def blockhash(ims, bits):
         even_y = height % bits == 0
 
         if even_x and even_y:
-            return blockhash_even(im, bits)
+            result = blockhash_even(im, bits)
+            bits_list.append("".join(map(str, result)))
+            continue
 
-        blocks = [[0 for col in range(bits)] for row in range(bits)]
+        blocks = np.zeros((bits, bits))
 
         block_width = float(width) / bits
         block_height = float(height) / bits
@@ -164,8 +168,7 @@ def blockhash(ims, bits):
         result = [blocks[row][col] for row in range(bits) for col in range(bits)]
 
         translate_blocks_to_bits(result, block_width * block_height)
-        bits_list.append(result)  # bits_to_hexhash(result)
-
+        bits_list.append("".join(map(str, result)))  # bits_to_hexhash(result)
     return bits_list
 
 

@@ -1,12 +1,17 @@
 import os
 import numpy as np
 from PIL import Image
+from matplotlib import pyplot as plt
+from tqdm import tqdm
 
 from transformer import Transformer
-from blockhash import blockhash
-from neuralhash import neuralhash
+from blockhash.blockhash import blockhash
+from neuralhash.neuralhash import neuralhash
 
-dataset_folder = '/dataset'
+def match(original_hash, modified_hash):
+    return sum(c1 == c2 for c1, c2 in zip(modified_hash, original_hash)) / len(modified_hash)
+
+dataset_folder = './dataset'
 image_files = [f for f in os.listdir(dataset_folder)]
 images = [Image.open(os.path.join(dataset_folder, image_file)) for image_file in image_files]
 
@@ -15,23 +20,27 @@ hash_methods = [blockhash, neuralhash]
 
 original_hashes_per_method = [hash_method(images) for hash_method in hash_methods]
 bit_match_percentage = np.zeros((len(hash_methods), len(transformations), len(image_files)))
+transformer = Transformer()
 
-for i, (image, original_hashes) in enumerate(zip(images, original_hashes_per_method)):
-    original_hashes = [hash_method(image) for hash_method in hash_methods]
-
+transformed_images_list = []
+for transformation in transformations:
     transformed_images = []
-    for j, transformation in enumerate(transformations):
-        transformed_image = Transformer().transform(image, transformation)
+    for image in images:
+        transformed_image = transformer.transform(image, transformation)
         transformed_images.append(transformed_image)
+    transformed_images_list.append(transformed_images)
 
-    for i, (original_hash, hash_method) in enumerate(zip(original_hashes, hash_methods)):
-
+for i, (original_hashes, hash_method) in enumerate(zip(original_hashes_per_method, hash_methods)):
+    for j, transformed_images in enumerate(transformed_images_list):
         modified_hashes = hash_method(transformed_images)
-        bit_overlap_percentages = [sum(c1 == c2 for c1, c2 in zip(modified_hash, original_hash)) / len(modified_hash) for modified_hash in modified_hashes]
+        bit_overlap_percentages = [match(modified_hash, original_hash) for modified_hash, original_hash in zip(modified_hashes, original_hashes)]
+        bit_match_percentage[i, j] = bit_overlap_percentages
 
-        bit_match_percentage[i][j] = bit_overlap_percentages
-
-for i, image_file in enumerate(image_files):
-    print(f"Image: {image_file}")
+for i, hash_method in enumerate(hash_methods):
     for j, transformation in enumerate(transformations):
-        print(f"Transformation: {transformation}, Bit Match Percentage: {bit_match_percentage[i][j]}")
+        print(f'{hash_method.__name__} with {transformation} transformation:', np.mean(bit_match_percentage[i, j]))
+        plt.hist(bit_match_percentage[i, j], bins=20)
+        plt.savefig(f'{hash_method.__name__}_{transformation}.png')
+        plt.close()
+
+    print("#############################################")
