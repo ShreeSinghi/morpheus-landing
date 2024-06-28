@@ -40,7 +40,7 @@ for i, hash_method in enumerate(hash_methods):
     for j, transformation in enumerate(transformations):
         print(f'{hash_method.__name__} with {transformation} transformation:', np.mean(bit_match_percentage[i, j]))
         plt.hist(bit_match_percentage[i, j], bins=20)
-        plt.savefig(f'{hash_method.__name__}_{transformation}.png')
+        plt.savefig(f'distribution/{hash_method.__name__}_{transformation}.png')
         plt.close()
 
     print("#############################################")
