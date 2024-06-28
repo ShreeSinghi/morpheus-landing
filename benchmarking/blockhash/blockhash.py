@@ -89,10 +89,11 @@ def blockhash_even(im, bits):
     # return bits_to_hexhash(result)
 
 
-def blockhash(ims, bits=32, size=224, *args, **kwargs):
+def blockhash(ims, bits=128, size=224, *args, **kwargs):
+    bits = round(bits**0.5)
     bits_list = []
     for i, im in enumerate(ims):  
-        method = kwargs.get("method", Image.BILINEAR)
+        method = kwargs.get("method", Image.LANCZOS)
         im = im.resize((size, size), method)
         if im.mode == "RGBA":
             total_value = total_value_rgba
@@ -208,7 +209,7 @@ if __name__ == "__main__":
     elif args.interpolation == 3:
         interpolation = Image.BICUBIC
     elif args.interpolation == 4:
-        interpolation = Image.ANTIALIAS
+        interpolation = Image.LANCZOS
 
     if args.quick:
         method = blockhash_even
